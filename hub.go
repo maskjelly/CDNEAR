@@ -3,52 +3,19 @@ package main
 import (
 	"bufio"
 	"crypto/subtle"
-	"fmt"
 	"net"
-	"os"
-	"strings"
 	"sync"
 	"time"
 )
 
-type chatLine struct {
-	Name string
-	Text string
-}
-
 type hub struct {
-	pass        string
-	mu          sync.Mutex
-	conns       map[net.Conn]string
-	log         []chatLine
-	geminiBusy  bool
-	geminiAgain bool
+	pass  string
+	mu    sync.Mutex
+	conns map[net.Conn]string
 }
 
 func newHub(pass string) *hub {
 	return &hub{pass: pass, conns: map[net.Conn]string{}}
-}
-
-func (h *hub) note(name, text string) {
-	h.mu.Lock()
-	h.log = append(h.log, chatLine{Name: name, Text: text})
-	if len(h.log) > 80 {
-		h.log = h.log[len(h.log)-80:]
-	}
-	h.mu.Unlock()
-}
-
-func (h *hub) history() string {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	var b strings.Builder
-	for _, ln := range h.log {
-		b.WriteString(ln.Name)
-		b.WriteString(": ")
-		b.WriteString(ln.Text)
-		b.WriteByte('\n')
-	}
-	return b.String()
 }
 
 func (h *hub) checkPass(got string) bool {
@@ -117,7 +84,6 @@ func (h *hub) serveConn(conn net.Conn, preauth string) {
 
 	h.add(conn, name)
 	h.broadcast(conn, wire{T: "join", Name: name})
-	h.note("*", name+" joined")
 
 	for sc.Scan() {
 		m, err := decodeWire(sc.Bytes())
@@ -131,90 +97,10 @@ func (h *hub) serveConn(conn net.Conn, preauth string) {
 			}
 			m.Name = name
 			h.broadcast(conn, m)
-			switch m.T {
-			case "msg":
-				h.note(name, m.Text)
-				go h.geminiSee()
-			case "img":
-				h.note(name, "sent an image "+m.Text)
-				go h.geminiSee()
-			}
 		}
 	}
 	h.remove(conn)
 	h.broadcast(nil, wire{T: "leave", Name: name})
-	h.note("*", name+" left")
-}
-
-func (h *hub) seatGemini() {
-	if geminiKey() == "" {
-		return
-	}
-	h.note("*", "gemini joined")
-	h.broadcast(nil, wire{T: "join", Name: "gemini"})
-	h.sayGemini("hey, i'm in the room")
-}
-
-func (h *hub) geminiSee() {
-	if geminiKey() == "" {
-		return
-	}
-	h.mu.Lock()
-	if h.geminiBusy {
-		h.geminiAgain = true
-		h.mu.Unlock()
-		return
-	}
-	h.geminiBusy = true
-	h.mu.Unlock()
-	go h.geminiTurn()
-}
-
-func (h *hub) geminiTurn() {
-	for {
-		hist := h.history()
-		need := lastLineMentionsGemini(hist)
-		prompt := geminiPersona + "\n\nTranscript so far:\n" + hist
-		if need {
-			prompt += "\nSomeone just talked to you. Reply with one short line. Do not output PASS."
-		} else {
-			prompt += "\nIf you would stay quiet, output PASS. Otherwise your one line:"
-		}
-		ans, err := askGemini(prompt)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "gemini:", err)
-			if need {
-				h.sayGemini("lagged, say that again")
-			}
-		} else {
-			ans = strings.TrimSpace(ans)
-			if need && (ans == "" || strings.EqualFold(ans, "PASS")) {
-				ans = "yeah?"
-			}
-			if ans != "" && !strings.EqualFold(ans, "PASS") {
-				if len(ans) > 800 {
-					ans = ans[:800] + "…"
-				}
-				h.sayGemini(ans)
-			}
-		}
-		h.mu.Lock()
-		if !h.geminiAgain {
-			h.geminiBusy = false
-			h.mu.Unlock()
-			return
-		}
-		h.geminiAgain = false
-		h.mu.Unlock()
-	}
-}
-
-func (h *hub) sayGemini(text string) {
-	h.broadcast(nil, wire{T: "type", Name: "gemini"})
-	time.Sleep(350 * time.Millisecond)
-	h.broadcast(nil, wire{T: "stop", Name: "gemini"})
-	h.broadcast(nil, wire{T: "msg", Name: "gemini", Text: text})
-	h.note("gemini", text)
 }
 
 func serveListener(ln net.Listener, h *hub) error {
