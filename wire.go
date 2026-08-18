@@ -5,10 +5,16 @@ import (
 	"encoding/json"
 )
 
+const (
+	maxImage = 4 << 20
+	maxWire  = 6 << 20
+)
+
 type wire struct {
 	T    string `json:"t"`
 	Name string `json:"n,omitempty"`
 	Text string `json:"x,omitempty"`
+	Data string `json:"d,omitempty"`
 }
 
 func encodeWire(m wire) ([]byte, error) {

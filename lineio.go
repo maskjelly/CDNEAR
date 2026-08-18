@@ -71,12 +71,19 @@ func (l *lineIO) SetStatus(s string) {
 }
 
 func (l *lineIO) Incoming(s string) {
+	l.ShowImage(s, nil)
+}
+
+func (l *lineIO) ShowImage(s string, raw []byte) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.closed {
 		return
 	}
 	fmt.Print("\r\033[2K" + s + "\n")
+	if len(raw) > 0 {
+		writeInlineImage(raw)
+	}
 	l.drawInputLocked()
 }
 

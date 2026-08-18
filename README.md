@@ -28,6 +28,6 @@ It asks for your name and a room password. You stay in the chat. It prints the `
 
 ## What it is
 
-One TCP server, many clients, shared password. Names, join/leave, typing, and your draft is not wiped when someone else sends a line.
+One TCP server, many clients, shared password. Names, join/leave, typing, images (`/img path`), and your draft is not wiped when someone else sends a line. Pictures land in `inbox/`.
 
 Not encrypted. Anyone with the password who can reach the port is in the room.

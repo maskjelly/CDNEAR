@@ -22,7 +22,7 @@ const (
 
 func tunnelChat(conn net.Conn, myName string, sendJoin bool) error {
 	fmt.Printf("%s-- tunnel up  %s --%s\n", cGreen, conn.RemoteAddr(), cReset)
-	fmt.Println("type and press enter. /quit to leave.")
+	fmt.Println("type and press enter. /img path  to send a picture. /quit to leave.")
 
 	lio := newLineIO(myName + "> ")
 	defer lio.Close()
@@ -54,6 +54,7 @@ func tunnelChat(conn net.Conn, myName string, sendJoin bool) error {
 
 	go func() {
 		sc := bufio.NewScanner(conn)
+		sc.Buffer(make([]byte, 64*1024), maxWire)
 		for sc.Scan() {
 			m, err := decodeWire(sc.Bytes())
 			if err != nil {
@@ -76,6 +77,14 @@ func tunnelChat(conn net.Conn, myName string, sendJoin bool) error {
 				lio.SetStatus("")
 				stamp := time.Now().Format("15:04")
 				lio.Incoming(fmt.Sprintf("%s%s%s %s%s>%s %s", cDim, stamp, cReset, cCyan, peer, cReset, m.Text))
+			case "img":
+				lio.SetStatus("")
+				path, raw, err := saveImage(m.Text, m.Data)
+				if err != nil {
+					lio.Incoming(fmt.Sprintf("%s* %s sent an image we could not save: %v%s", cDim, peer, err, cReset))
+					break
+				}
+				lio.ShowImage(fmt.Sprintf("%s%s>%s sent %s → %s", cCyan, peer, cReset, m.Text, path), raw)
 			}
 		}
 		if err := sc.Err(); err != nil {
@@ -103,6 +112,20 @@ func tunnelChat(conn net.Conn, myName string, sendJoin bool) error {
 				return
 			}
 			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			if path, ok := strings.CutPrefix(strings.TrimSpace(line), "/img "); ok {
+				note("")
+				name, b64, raw, err := loadImage(strings.Trim(path, `"'`))
+				if err != nil {
+					lio.Incoming(fmt.Sprintf("%s* %v%s", cDim, err, cReset))
+					continue
+				}
+				if err := send(wire{T: "img", Name: myName, Text: name, Data: b64}); err != nil {
+					errc <- err
+					return
+				}
+				lio.ShowImage(fmt.Sprintf("%syou sent %s%s", cDim, name, cReset), raw)
 				continue
 			}
 			note("")

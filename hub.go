@@ -52,6 +52,7 @@ func (h *hub) broadcast(skip net.Conn, m wire) {
 func (h *hub) serveConn(conn net.Conn, preauth string) {
 	defer conn.Close()
 	sc := bufio.NewScanner(conn)
+	sc.Buffer(make([]byte, 64*1024), maxWire)
 	name := preauth
 
 	if name == "" {
@@ -85,7 +86,10 @@ func (h *hub) serveConn(conn net.Conn, preauth string) {
 			continue
 		}
 		switch m.T {
-		case "msg", "type", "stop", "leave":
+		case "msg", "type", "stop", "leave", "img":
+			if m.T == "img" && len(m.Data) > maxWire {
+				continue
+			}
 			m.Name = name
 			h.broadcast(conn, m)
 		}
