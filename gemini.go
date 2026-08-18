@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const geminiURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
+const geminiURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"
 
 const geminiPersona = `You are Gemini in a small group chat. You read every line. You are not a narrator and not a help bot.
 Speak only when a human in the room would: someone talks to you, asks a question you can answer, or you have a brief useful take.
