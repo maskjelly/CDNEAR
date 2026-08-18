@@ -20,7 +20,7 @@ const (
 	cYellow = "\033[33m"
 )
 
-func tunnelChat(conn net.Conn, myName string) error {
+func tunnelChat(conn net.Conn, myName string, sendJoin bool) error {
 	fmt.Printf("%s-- tunnel up  %s --%s\n", cGreen, conn.RemoteAddr(), cReset)
 	fmt.Println("type and press enter. /quit to leave.")
 
@@ -39,8 +39,10 @@ func tunnelChat(conn net.Conn, myName string) error {
 		return err
 	}
 
-	if err := send(wire{T: "join", Name: myName}); err != nil {
-		return err
+	if sendJoin {
+		if err := send(wire{T: "join", Name: myName}); err != nil {
+			return err
+		}
 	}
 
 	note := tcpTyper(send, myName)

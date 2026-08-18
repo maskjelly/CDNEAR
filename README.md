@@ -1,40 +1,33 @@
 # cdnear
 
-Direct tunnel chat. One TCP connection between you and your friend. No ntfy, no account, no third-party chat server. Messages only go on that socket.
+A password-protected chat server you run yourself. Others join with the address and the password. No ntfy, no account, no third-party chat host.
 
-## Friend: start here
+Anyone can host: run this on a computer people can reach, share the address and password.
+
+## Friend / anyone joining
 
 ```bash
 git clone https://github.com/maskjelly/CDNEAR.git
 cd CDNEAR
-chmod +x check.sh
-./check.sh
+go run . join HOST:9000
 ```
 
-Need Go 1.21+ from https://go.dev/dl/ (macOS: `brew install go`). Reopen the terminal after installing.
+It asks for your name and the room password.
 
-## Chat
+## Host
 
-**You (host)**
 ```bash
 go run . host
 ```
 
-It asks `your name:`, then prints the `go run . join …` line for your friend.
+It asks for your name and a room password. You stay in the chat. It prints the `join` line for everyone else.
 
-**Friend**
-```bash
-go run . join THE.ADDRESS:9000
-```
+**Same Wi-Fi** — they use the `192.168.…` address it prints.
 
-Use the address `host` printed. Type, press enter. `/quit` leaves.
+**From the internet** — the host computer must already be reachable on TCP 9000 (a VPS, a cloud VM, or a home box that already has a public port). This binary will not punch through a home router by itself. If the machine has no public IP, joiners outside your network cannot connect.
 
-Same Wi-Fi: use the LAN address (`192.168.…`).
+## What it is
 
-Different houses: the host must forward **TCP 9000** on their router to this computer. Friend joins the public address `host` printed.
+One TCP server, many clients, shared password. Names, join/leave, typing, and your draft is not wiped when someone else sends a line.
 
-## What this is
-
-A TCP tunnel and a terminal chat on top of it. Names, join/leave, typing indicator, and your draft stays if a message arrives mid-type.
-
-Not encrypted. Anyone who can reach the host port can connect. Only run it with someone you trust.
+Not encrypted. Anyone with the password who can reach the port is in the room.

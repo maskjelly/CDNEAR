@@ -119,7 +119,7 @@ func via(addr, room string) error {
 		return fmt.Errorf("relay said %q", strings.TrimSpace(line))
 	}
 
-	return tunnelChat(&prefacedConn{Conn: conn, leftover: br}, name)
+	return tunnelChat(&prefacedConn{Conn: conn, leftover: br}, name, true)
 }
 
 // leftover handshake bytes, then the socket

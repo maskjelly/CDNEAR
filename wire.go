@@ -1,6 +1,9 @@
 package main
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 type wire struct {
 	T    string `json:"t"`
@@ -18,6 +21,6 @@ func encodeWire(m wire) ([]byte, error) {
 
 func decodeWire(line []byte) (wire, error) {
 	var m wire
-	err := json.Unmarshal(line, &m)
+	err := json.Unmarshal(bytes.TrimSpace(line), &m)
 	return m, err
 }

@@ -61,13 +61,16 @@ func main() {
 }
 
 func usage(w *os.File) {
-	fmt.Fprint(w, `cdnear — direct tunnel chat (just the two of you)
+	fmt.Fprint(w, `cdnear — password room on a TCP server you run
 
-  you:     go run . host
-  friend:  go run . join <your-ip>:9000
+  host:   go run . host
+  anyone: go run . join <host-ip>:9000
 
-Same network: use the LAN address host prints.
-Different networks: forward TCP 9000 on the host's router, friend joins the public address.
+Host sets a password. Joiners type the same password.
+Anyone can run host on their own computer.
+
+The host machine must be reachable (same Wi-Fi, or a VPS / public IP).
+This program does not use a third-party chat server.
 
 Type /quit to leave.
 `)
