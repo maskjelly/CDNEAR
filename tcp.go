@@ -50,6 +50,13 @@ func host(port string) error {
 		fmt.Printf("  go run . join %s\n", tun.Addr)
 	}
 	fmt.Println("same password for everyone.")
+	if geminiKey() != "" {
+		fmt.Println("gemini is sitting in the room and can see the whole chat")
+		go func() {
+			time.Sleep(time.Second)
+			h.seatGemini()
+		}()
+	}
 
 	conn, err := net.DialTimeout("tcp4", net.JoinHostPort("127.0.0.1", port), 3*time.Second)
 	if err != nil {
