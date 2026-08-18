@@ -40,12 +40,17 @@ func (h *hub) broadcast(skip net.Conn, m wire) {
 		return
 	}
 	h.mu.Lock()
-	defer h.mu.Unlock()
+	targets := make([]net.Conn, 0, len(h.conns))
 	for c := range h.conns {
-		if c == skip {
-			continue
+		if c != skip {
+			targets = append(targets, c)
 		}
+	}
+	h.mu.Unlock()
+	for _, c := range targets {
+		_ = c.SetWriteDeadline(time.Now().Add(10 * time.Second))
 		_, _ = c.Write(b)
+		_ = c.SetWriteDeadline(time.Time{})
 	}
 }
 

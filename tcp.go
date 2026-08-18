@@ -21,32 +21,39 @@ func host(port string) error {
 		return fmt.Errorf("password required")
 	}
 
-	ln, err := net.Listen("tcp", ":"+port)
+	ln, err := net.Listen("tcp4", ":"+port)
 	if err != nil {
 		return err
 	}
 	defer ln.Close()
 
+	h := newHub(pass)
+	go serveListener(ln, h)
+
 	fmt.Println()
-	fmt.Println("server up — anyone with the address and password can join")
+	fmt.Println("server is accepting joins now")
 	if ips := localIPv4s(); len(ips) > 0 {
 		fmt.Println("same network:")
 		for _, ip := range ips {
 			fmt.Printf("  go run . join %s:%s\n", ip, port)
 		}
 	}
-	if pub := publicTCP(port); pub != "" {
-		fmt.Println("if this computer already has a public IP (VPS / port already open):")
-		fmt.Printf("  go run . join %s\n", pub)
+	fmt.Println("they use the same password.")
+	go func() {
+		if pub := publicTCP(port); pub != "" {
+			fmt.Printf("public address (only works if this machine is reachable): go run . join %s\n", pub)
+		}
+	}()
+
+	conn, err := net.DialTimeout("tcp4", net.JoinHostPort("127.0.0.1", port), 3*time.Second)
+	if err != nil {
+		return fmt.Errorf("could not attach host to the room: %w", err)
 	}
-	fmt.Println("they will be asked for the same password.")
-
-	h := newHub(pass)
-	go serveListener(ln, h)
-
-	local, remote := net.Pipe()
-	go h.serveConn(remote, name)
-	return tunnelChat(local, name, false)
+	defer conn.Close()
+	if err := loginConn(conn, name, pass); err != nil {
+		return err
+	}
+	return tunnelChat(conn, name, false)
 }
 
 func join(addr string) error {
@@ -56,20 +63,29 @@ func join(addr string) error {
 		return err
 	}
 
-	conn, err := net.Dial("tcp", addr)
+	fmt.Fprintf(os.Stderr, "connecting to %s...\n", addr)
+	conn, err := net.DialTimeout("tcp", addr, 8*time.Second)
 	if err != nil {
-		return fmt.Errorf("could not reach %s: %w", addr, err)
+		return fmt.Errorf("could not reach %s — use the 192.168 address the host printed if you are on the same Wi-Fi", addr)
 	}
 	defer conn.Close()
 
+	fmt.Fprintln(os.Stderr, "logging in...")
+	if err := loginConn(conn, name, pass); err != nil {
+		return err
+	}
+	return tunnelChat(conn, name, false)
+}
+
+func loginConn(conn net.Conn, name, pass string) error {
 	if err := writeWire(conn, wire{T: "auth", Name: name, Text: pass}); err != nil {
 		return err
 	}
-	_ = conn.SetDeadline(time.Now().Add(15 * time.Second))
+	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 	br := bufio.NewReader(conn)
 	line, err := br.ReadBytes('\n')
 	if err != nil {
-		return fmt.Errorf("server closed during login: %w", err)
+		return fmt.Errorf("no reply from server (is host actually running?): %w", err)
 	}
 	reply, err := decodeWire(bytes.TrimRight(line, "\r\n"))
 	if err != nil {
@@ -82,8 +98,7 @@ func join(addr string) error {
 		return fmt.Errorf("login failed")
 	}
 	_ = conn.SetDeadline(time.Time{})
-
-	return tunnelChat(&prefacedConn{Conn: conn, leftover: br}, name, false)
+	return nil
 }
 
 func writeWire(c net.Conn, m wire) error {
