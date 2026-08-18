@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -99,7 +100,10 @@ func punch(pc *net.UDPConn, peer *net.UDPAddr) (*net.UDPAddr, error) {
 func udpChat(pc *net.UDPConn, peer *net.UDPAddr) error {
 	fmt.Printf("-- connected to %s --\n", peer)
 	fmt.Println("type a message and press enter. /quit to leave.")
-	fmt.Print("you> ")
+
+	lio := newLineIO("you> ")
+	defer lio.Close()
+	lio.Prompt()
 
 	var wmu sync.Mutex
 	write := func(b []byte) error {
@@ -146,7 +150,7 @@ func udpChat(pc *net.UDPConn, peer *net.UDPAddr) error {
 						delete(seen, k)
 					}
 				}
-				fmt.Printf("\r\033[Kfriend> %s\nyou> ", text)
+				lio.Incoming("friend> " + text)
 			}
 		}
 	}()
@@ -163,15 +167,21 @@ func udpChat(pc *net.UDPConn, peer *net.UDPAddr) error {
 	}()
 
 	go func() {
-		sc := bufio.NewScanner(os.Stdin)
-		for sc.Scan() {
-			line := sc.Text()
+		for {
+			line, err := lio.ReadLine()
+			if err != nil {
+				if err == io.EOF {
+					errc <- nil
+					return
+				}
+				errc <- err
+				return
+			}
 			if strings.TrimSpace(line) == "/quit" {
 				errc <- nil
 				return
 			}
 			if line == "" {
-				fmt.Print("you> ")
 				continue
 			}
 			id := newMsgID()
@@ -179,13 +189,7 @@ func udpChat(pc *net.UDPConn, peer *net.UDPAddr) error {
 				errc <- err
 				return
 			}
-			fmt.Print("you> ")
 		}
-		if err := sc.Err(); err != nil {
-			errc <- err
-			return
-		}
-		errc <- nil
 	}()
 
 	err := <-errc
