@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 )
 
 const defaultPort = "9000"
@@ -16,12 +15,6 @@ func main() {
 
 	var err error
 	switch os.Args[1] {
-	case "room":
-		if len(os.Args) < 3 {
-			err = fmt.Errorf("usage: go run . room <secret-word>")
-			break
-		}
-		err = room(strings.Join(os.Args[2:], " "))
 	case "host":
 		port := defaultPort
 		if len(os.Args) > 2 {
@@ -68,17 +61,13 @@ func main() {
 }
 
 func usage(w *os.File) {
-	fmt.Fprint(w, `cdnear — terminal chat (all Go)
+	fmt.Fprint(w, `cdnear — direct tunnel chat (just the two of you)
 
-Chat from anywhere (same word, both of you):
-  go run . room secret-word
+  you:     go run . host
+  friend:  go run . join <your-ip>:9000
 
-First time:
-  ./check.sh
-
-Same Wi-Fi only:
-  go run . host
-  go run . join 192.168.x.x:9000
+Same network: use the LAN address host prints.
+Different networks: forward TCP 9000 on the host's router, friend joins the public address.
 
 Type /quit to leave.
 `)

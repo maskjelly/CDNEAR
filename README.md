@@ -1,6 +1,6 @@
 # cdnear
 
-Terminal chat in Go. You and a friend type the same room word and talk. Works across the world.
+Direct tunnel chat. One TCP connection between you and your friend. No ntfy, no account, no third-party chat server. Messages only go on that socket.
 
 ## Friend: start here
 
@@ -11,26 +11,30 @@ chmod +x check.sh
 ./check.sh
 ```
 
-Need Go 1.21+ from https://go.dev/dl/ (macOS: `brew install go`). Reopen the terminal after installing. `./check.sh` should end with `ready.`
+Need Go 1.21+ from https://go.dev/dl/ (macOS: `brew install go`). Reopen the terminal after installing.
 
 ## Chat
 
-Pick any secret word. Both of you run the same command:
-
+**You (host)**
 ```bash
-go run . room pineapple-42
+go run . host
 ```
 
-Type, press enter. `/quit` leaves.
+It asks `your name:`, then prints the `go run . join …` line for your friend.
 
-## Other commands
+**Friend**
+```bash
+go run . join THE.ADDRESS:9000
+```
 
-| Command | What it does |
-| --- | --- |
-| `./check.sh` | Is Go installed, then network checks |
-| `go run . check` | Same checks once Go is there |
-| `go run . room <word>` | Chat from anywhere |
-| `go run . host` | Same Wi-Fi only |
-| `go run . join host:port` | Same Wi-Fi only |
+Use the address `host` printed. Type, press enter. `/quit` leaves.
 
-Chat is not encrypted. Use a word only you two know.
+Same Wi-Fi: use the LAN address (`192.168.…`).
+
+Different houses: the host must forward **TCP 9000** on their router to this computer. Friend joins the public address `host` printed.
+
+## What this is
+
+A TCP tunnel and a terminal chat on top of it. Names, join/leave, typing indicator, and your draft stays if a message arrives mid-type.
+
+Not encrypted. Anyone who can reach the host port can connect. Only run it with someone you trust.

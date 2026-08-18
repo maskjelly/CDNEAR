@@ -104,11 +104,10 @@ func check() error {
 		fmt.Printf("  same Wi-Fi     no     no local IPv4 address\n")
 	}
 	if meetOK {
-		fmt.Printf("  internet meet  yes    go run . meet   (both of you, at the same time)\n")
+		fmt.Printf("  public addr    yes    friend can join this if you forward TCP %s\n", defaultPort)
 	} else {
-		fmt.Printf("  internet meet  no     STUN failed; try a relay or the same Wi-Fi\n")
+		fmt.Printf("  public addr    no     host still works on the same network\n")
 	}
-	fmt.Printf("  relay join     yes    go run . via <public-server>:%s <room>\n", defaultPort)
 	fmt.Println()
 
 	if failed > 0 {

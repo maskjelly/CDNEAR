@@ -88,6 +88,7 @@ func pairRelay(c net.Conn, mu *sync.Mutex, rooms map[string]net.Conn) error {
 }
 
 func via(addr, room string) error {
+	name := askName()
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("could not reach relay %s: %w", addr, err)
@@ -118,7 +119,7 @@ func via(addr, room string) error {
 		return fmt.Errorf("relay said %q", strings.TrimSpace(line))
 	}
 
-	return chat(&prefacedConn{Conn: conn, leftover: br}, "friend")
+	return tunnelChat(&prefacedConn{Conn: conn, leftover: br}, name)
 }
 
 // leftover handshake bytes, then the socket

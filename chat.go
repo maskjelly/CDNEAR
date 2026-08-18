@@ -5,23 +5,76 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
+	"sync"
+	"time"
+	"unicode"
 )
 
-func chat(conn net.Conn, peerName string) error {
-	fmt.Printf("-- connected to %s --\n", peerName)
-	fmt.Println("type a message and press enter. /quit to leave.")
+const (
+	cReset  = "\033[0m"
+	cDim    = "\033[2m"
+	cCyan   = "\033[36m"
+	cGreen  = "\033[32m"
+	cYellow = "\033[33m"
+)
 
-	lio := newLineIO("you> ")
+func tunnelChat(conn net.Conn, myName string) error {
+	fmt.Printf("%s-- tunnel up  %s --%s\n", cGreen, conn.RemoteAddr(), cReset)
+	fmt.Println("type and press enter. /quit to leave.")
+
+	lio := newLineIO(myName + "> ")
 	defer lio.Close()
+
+	var wmu sync.Mutex
+	send := func(m wire) error {
+		b, err := encodeWire(m)
+		if err != nil {
+			return err
+		}
+		wmu.Lock()
+		defer wmu.Unlock()
+		_, err = conn.Write(b)
+		return err
+	}
+
+	if err := send(wire{T: "join", Name: myName}); err != nil {
+		return err
+	}
+
+	note := tcpTyper(send, myName)
+	lio.onChange = note
 	lio.Prompt()
 
 	errc := make(chan error, 2)
+	peer := "friend"
 
 	go func() {
 		sc := bufio.NewScanner(conn)
 		for sc.Scan() {
-			lio.Incoming(peerName + "> " + sc.Text())
+			m, err := decodeWire(sc.Bytes())
+			if err != nil {
+				continue
+			}
+			if m.Name != "" {
+				peer = m.Name
+			}
+			switch m.T {
+			case "join":
+				lio.Incoming(fmt.Sprintf("%s* %s joined%s", cGreen, peer, cReset))
+			case "leave":
+				lio.SetStatus("")
+				lio.Incoming(fmt.Sprintf("%s* %s left%s", cDim, peer, cReset))
+			case "type":
+				lio.SetStatus(cYellow + peer + " is typing..." + cReset)
+			case "stop":
+				lio.SetStatus("")
+			case "msg":
+				lio.SetStatus("")
+				stamp := time.Now().Format("15:04")
+				lio.Incoming(fmt.Sprintf("%s%s%s %s%s>%s %s", cDim, stamp, cReset, cCyan, peer, cReset, m.Text))
+			}
 		}
 		if err := sc.Err(); err != nil {
 			errc <- err
@@ -35,6 +88,7 @@ func chat(conn net.Conn, peerName string) error {
 			line, err := lio.ReadLine()
 			if err != nil {
 				if err == io.EOF {
+					_ = send(wire{T: "leave", Name: myName})
 					errc <- nil
 					return
 				}
@@ -42,10 +96,15 @@ func chat(conn net.Conn, peerName string) error {
 				return
 			}
 			if strings.TrimSpace(line) == "/quit" {
+				_ = send(wire{T: "leave", Name: myName})
 				errc <- nil
 				return
 			}
-			if _, err := fmt.Fprintln(conn, line); err != nil {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			note("")
+			if err := send(wire{T: "msg", Name: myName, Text: line}); err != nil {
 				errc <- err
 				return
 			}
@@ -54,10 +113,68 @@ func chat(conn net.Conn, peerName string) error {
 
 	err := <-errc
 	if err == io.EOF {
-		fmt.Println("friend disconnected")
+		fmt.Println("tunnel closed")
 		return nil
 	}
 	return err
+}
+
+func tcpTyper(send func(wire) error, name string) func(string) {
+	var mu sync.Mutex
+	on := false
+	var timer *time.Timer
+	stop := func() {
+		mu.Lock()
+		defer mu.Unlock()
+		if timer != nil {
+			timer.Stop()
+		}
+		if !on {
+			return
+		}
+		on = false
+		go send(wire{T: "stop", Name: name})
+	}
+	return func(text string) {
+		if strings.TrimSpace(text) == "" {
+			stop()
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		if !on {
+			on = true
+			go send(wire{T: "type", Name: name})
+		}
+		if timer != nil {
+			timer.Stop()
+		}
+		timer = time.AfterFunc(2*time.Second, stop)
+	}
+}
+
+func askName() string {
+	fmt.Print("your name: ")
+	sc := bufio.NewScanner(os.Stdin)
+	if !sc.Scan() {
+		return "anon"
+	}
+	var b strings.Builder
+	n := 0
+	for _, r := range strings.TrimSpace(sc.Text()) {
+		if !unicode.IsPrint(r) {
+			continue
+		}
+		n++
+		if n > 20 {
+			break
+		}
+		b.WriteRune(r)
+	}
+	if b.Len() == 0 {
+		return "anon"
+	}
+	return b.String()
 }
 
 func localIPv4s() []string {
