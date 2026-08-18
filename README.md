@@ -28,8 +28,8 @@ It asks for your name and a room password. You stay in the chat. It prints the `
 
 ## What it is
 
-One TCP server, many clients, shared password. Names, join/leave, typing, images (`/img path`), Gemini (`/gemini question`), and your draft is not wiped when someone else sends a line. Pictures land in `inbox/`.
+One TCP server, many clients, shared password. Names, join/leave, typing, images (`/img path`), and your draft is not wiped when someone else sends a line. Pictures land in `inbox/`.
 
-Gemini sits in the room like another person: it sees every message and talks when it has something to say. `/gemini question` pokes it directly. Host needs `GEMINI_API_KEY` or a local `gemini.key` file (not committed).
+If the host has `GEMINI_API_KEY` or a local `gemini.key`, Gemini sits in the room the whole time, sees every line, and talks like another person. No slash command.
 
 Not encrypted. Anyone with the password who can reach the port is in the room.

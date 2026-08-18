@@ -15,11 +15,12 @@ type chatLine struct {
 }
 
 type hub struct {
-	pass       string
-	mu         sync.Mutex
-	conns      map[net.Conn]string
-	log        []chatLine
-	geminiBusy bool
+	pass        string
+	mu          sync.Mutex
+	conns       map[net.Conn]string
+	log         []chatLine
+	geminiBusy  bool
+	geminiAgain bool
 }
 
 func newHub(pass string) *hub {
@@ -132,11 +133,7 @@ func (h *hub) serveConn(conn net.Conn, preauth string) {
 			switch m.T {
 			case "msg":
 				h.note(name, m.Text)
-				if q, ok := strings.CutPrefix(strings.TrimSpace(m.Text), "/gemini "); ok {
-					go h.geminiDirect(name, q)
-				} else {
-					go h.geminiSee()
-				}
+				go h.geminiSee()
 			case "img":
 				h.note(name, "sent an image "+m.Text)
 				go h.geminiSee()
@@ -158,63 +155,43 @@ func (h *hub) seatGemini() {
 	h.sayGemini("hey, i'm in the room")
 }
 
-func (h *hub) geminiDirect(from, q string) {
-	q = strings.TrimSpace(q)
-	if q == "" {
-		h.sayGemini("yeah?")
-		return
-	}
-	h.geminiReply(true, from+" asked you directly: "+q)
-}
-
 func (h *hub) geminiSee() {
-	h.geminiReply(false, "")
-}
-
-func (h *hub) geminiReply(must bool, extra string) {
 	if geminiKey() == "" {
-		if must {
-			h.sayGemini("no api key on the host")
-		}
 		return
 	}
 	h.mu.Lock()
 	if h.geminiBusy {
+		h.geminiAgain = true
 		h.mu.Unlock()
 		return
 	}
 	h.geminiBusy = true
 	h.mu.Unlock()
-	defer func() {
-		h.mu.Lock()
-		h.geminiBusy = false
-		h.mu.Unlock()
-	}()
+	go h.geminiTurn()
+}
 
-	prompt := geminiPersona + "\n\nTranscript so far:\n" + h.history()
-	if extra != "" {
-		prompt += "\n" + extra + "\n"
-	}
-	if must {
-		prompt += "\nReply now as gemini. Do not say PASS."
-	} else {
-		prompt += "\nYour next line as gemini (or PASS):"
-	}
-	ans, err := askGemini(prompt)
-	if err != nil {
-		if must {
-			h.sayGemini("brain freeze: " + err.Error())
+func (h *hub) geminiTurn() {
+	for {
+		prompt := geminiPersona + "\n\nTranscript so far:\n" + h.history() + "\nYour next line as gemini:"
+		ans, err := askGemini(prompt)
+		if err == nil {
+			ans = strings.TrimSpace(ans)
+			if ans != "" && !strings.EqualFold(ans, "PASS") {
+				if len(ans) > 800 {
+					ans = ans[:800] + "…"
+				}
+				h.sayGemini(ans)
+			}
 		}
-		return
+		h.mu.Lock()
+		if !h.geminiAgain {
+			h.geminiBusy = false
+			h.mu.Unlock()
+			return
+		}
+		h.geminiAgain = false
+		h.mu.Unlock()
 	}
-	ans = strings.TrimSpace(ans)
-	if !must && (ans == "" || strings.EqualFold(ans, "PASS")) {
-		return
-	}
-	if len(ans) > 800 {
-		ans = ans[:800] + "…"
-	}
-	h.sayGemini(ans)
 }
 
 func (h *hub) sayGemini(text string) {

@@ -22,7 +22,7 @@ const (
 
 func tunnelChat(conn net.Conn, myName string, sendJoin bool) error {
 	fmt.Printf("%s-- in the room --%s\n", cGreen, cReset)
-	fmt.Println("type and press enter. /img path  picture. /gemini hi  poke gemini. /quit leaves.")
+	fmt.Println("type and press enter. /img path  to send a picture. /quit to leave.")
 
 	lio := newLineIO(myName + "> ")
 	defer lio.Close()
