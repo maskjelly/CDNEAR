@@ -30,6 +30,6 @@ It asks for your name and a room password. You stay in the chat. It prints the `
 
 One TCP server, many clients, shared password. Names, join/leave, typing, images (`/img path`), and your draft is not wiped when someone else sends a line. Pictures land in `inbox/`.
 
-If the host has `GEMINI_API_KEY` or a local `gemini.key`, Gemini sits in the room the whole time, sees every line, and talks like another person. No slash command.
+If the host has `GEMINI_API_KEY` or a local `gemini.key`, Gemini sits in the room, reads every line, and only speaks when a person would — not on every message. No slash command.
 
 Not encrypted. Anyone with the password who can reach the port is in the room.

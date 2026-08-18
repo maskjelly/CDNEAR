@@ -116,7 +116,6 @@ func (h *hub) serveConn(conn net.Conn, preauth string) {
 	h.add(conn, name)
 	h.broadcast(conn, wire{T: "join", Name: name})
 	h.note("*", name+" joined")
-	go h.geminiSee()
 
 	for sc.Scan() {
 		m, err := decodeWire(sc.Bytes())
@@ -143,7 +142,6 @@ func (h *hub) serveConn(conn net.Conn, preauth string) {
 	h.remove(conn)
 	h.broadcast(nil, wire{T: "leave", Name: name})
 	h.note("*", name+" left")
-	go h.geminiSee()
 }
 
 func (h *hub) seatGemini() {
@@ -172,7 +170,7 @@ func (h *hub) geminiSee() {
 
 func (h *hub) geminiTurn() {
 	for {
-		prompt := geminiPersona + "\n\nTranscript so far:\n" + h.history() + "\nYour next line as gemini:"
+		prompt := geminiPersona + "\n\nTranscript so far:\n" + h.history() + "\nIf you would stay quiet, output PASS. Otherwise your one line:"
 		ans, err := askGemini(prompt)
 		if err == nil {
 			ans = strings.TrimSpace(ans)
