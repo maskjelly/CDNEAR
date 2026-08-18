@@ -3,7 +3,7 @@ package main
 import "testing"
 
 func TestParseTunnelAddr(t *testing.T) {
-	in := "You are not authenticated.\ntcp://sgvbx-205-254-163-7.run.pinggy-free.link:43531\n"
+	in := "You are not authenticated.\ntcp://sgvbx-205-254-163-7.run.pinggy-free.link : 43531\n"
 	got := parseTunnelAddr(in)
 	if got != "sgvbx-205-254-163-7.run.pinggy-free.link:43531" {
 		t.Fatalf("got %q", got)
