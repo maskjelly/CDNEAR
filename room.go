@@ -12,7 +12,12 @@ import (
 	"time"
 )
 
-const ntfyBase = "https://ntfy.sh"
+const (
+	ntfyBase = "https://ntfy.sh"
+	tagJoin  = "\x01join"
+	tagHere  = "\x01here"
+	tagLeave = "\x01leave"
+)
 
 func room(name string) error {
 	name = strings.TrimSpace(name)
@@ -29,11 +34,15 @@ func room(name string) error {
 
 	errc := make(chan error, 2)
 	go func() { errc <- listenRoom(topic, me) }()
+	time.Sleep(400 * time.Millisecond)
+	_ = sendRoom(topic, me+" "+tagJoin)
+
 	go func() {
 		sc := bufio.NewScanner(os.Stdin)
 		for sc.Scan() {
 			line := sc.Text()
 			if strings.TrimSpace(line) == "/quit" {
+				_ = sendRoom(topic, me+" "+tagLeave)
 				errc <- nil
 				return
 			}
@@ -83,14 +92,21 @@ func listenRoom(topic, me string) error {
 			if json.Unmarshal(sc.Bytes(), &ev) != nil || ev.Event != "message" {
 				continue
 			}
-			if strings.HasPrefix(ev.Message, me+" ") {
+			id, rest, ok := strings.Cut(ev.Message, " ")
+			if !ok || id == me {
 				continue
 			}
-			_, text, ok := strings.Cut(ev.Message, " ")
-			if !ok {
-				text = ev.Message
+			switch rest {
+			case tagJoin:
+				fmt.Printf("\r\033[K* friend joined\nyou> ")
+				_ = sendRoom(topic, me+" "+tagHere)
+			case tagHere:
+				fmt.Printf("\r\033[K* friend is here\nyou> ")
+			case tagLeave:
+				fmt.Printf("\r\033[K* friend left\nyou> ")
+			default:
+				fmt.Printf("\r\033[Kfriend> %s\nyou> ", rest)
 			}
-			fmt.Printf("\r\033[Kfriend> %s\nyou> ", text)
 		}
 		resp.Body.Close()
 		time.Sleep(time.Second)
