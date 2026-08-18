@@ -61,16 +61,13 @@ func main() {
 }
 
 func usage(w *os.File) {
-	fmt.Fprint(w, `cdnear — password room on a TCP server you run
+	fmt.Fprint(w, `cdnear — password room
 
   host:   go run . host
-  anyone: go run . join <host-ip>:9000
+  anyone: go run . join <address>
 
-Host sets a password. Joiners type the same password.
-Anyone can run host on their own computer.
-
-The host machine must be reachable (same Wi-Fi, or a VPS / public IP).
-This program does not use a third-party chat server.
+Host sets a password and gets a join line for other Wi-Fi.
+Joiners use that line and the same password.
 
 Type /quit to leave.
 `)

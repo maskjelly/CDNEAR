@@ -33,17 +33,23 @@ func host(port string) error {
 	fmt.Println()
 	fmt.Println("server is accepting joins now")
 	if ips := localIPv4s(); len(ips) > 0 {
-		fmt.Println("same network:")
+		fmt.Println("same Wi-Fi:")
 		for _, ip := range ips {
 			fmt.Printf("  go run . join %s:%s\n", ip, port)
 		}
 	}
-	fmt.Println("they use the same password.")
-	go func() {
-		if pub := publicTCP(port); pub != "" {
-			fmt.Printf("public address (only works if this machine is reachable): go run . join %s\n", pub)
-		}
-	}()
+
+	fmt.Println("opening a public tunnel for other Wi-Fi...")
+	tun, err := startPublicTunnel(port)
+	if err != nil {
+		fmt.Println("public tunnel failed:", err)
+		fmt.Println("only same-Wi-Fi joins will work")
+	} else {
+		defer tun.Close()
+		fmt.Println("other Wi-Fi — send this line:")
+		fmt.Printf("  go run . join %s\n", tun.Addr)
+	}
+	fmt.Println("same password for everyone.")
 
 	conn, err := net.DialTimeout("tcp4", net.JoinHostPort("127.0.0.1", port), 3*time.Second)
 	if err != nil {
@@ -63,8 +69,9 @@ func join(addr string) error {
 		return err
 	}
 
+	addr = normalizeJoinAddr(addr)
 	fmt.Fprintf(os.Stderr, "connecting to %s...\n", addr)
-	conn, err := net.DialTimeout("tcp", addr, 8*time.Second)
+	conn, err := net.DialTimeout("tcp", addr, 15*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not reach %s — use the 192.168 address the host printed if you are on the same Wi-Fi", addr)
 	}

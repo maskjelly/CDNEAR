@@ -22,9 +22,9 @@ go run . host
 
 It asks for your name and a room password. You stay in the chat. It prints the `join` line for everyone else.
 
-**Same Wi-Fi** — they use the `192.168.…` address it prints.
+**Same Wi-Fi** — they use the `192.168.…` line.
 
-**From the internet** — the host computer must already be reachable on TCP 9000 (a VPS, a cloud VM, or a home box that already has a public port). This binary will not punch through a home router by itself. If the machine has no public IP, joiners outside your network cannot connect.
+**Other Wi-Fi** — `host` opens a public TCP tunnel and prints a second `go run . join …` line. Send that one. No router port-forward. The tunnel is only a pipe to your process; the room and password still live on the host computer.
 
 ## What it is
 
