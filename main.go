@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 const defaultPort = "9000"
@@ -15,6 +16,12 @@ func main() {
 
 	var err error
 	switch os.Args[1] {
+	case "room":
+		if len(os.Args) < 3 {
+			err = fmt.Errorf("usage: go run . room <secret-word>")
+			break
+		}
+		err = room(strings.Join(os.Args[2:], " "))
 	case "host":
 		port := defaultPort
 		if len(os.Args) > 2 {
@@ -63,23 +70,16 @@ func main() {
 func usage(w *os.File) {
 	fmt.Fprint(w, `cdnear — terminal chat (all Go)
 
-First time / is my machine ready:
+Chat from anywhere (same word, both of you):
+  go run . room secret-word
+
+First time:
   ./check.sh
-  go run . check
 
-Same Wi-Fi / same network:
-  you:     go run . host
-  friend:  go run . join 192.168.x.x:9000
+Same Wi-Fi only:
+  go run . host
+  go run . join 192.168.x.x:9000
 
-Different houses (no server — you swap codes):
-  both:    go run . meet
-           tell your friend your code, paste theirs
-
-If meet fails (some phones / strict NATs), run a relay
-on any machine with a public IP, then both join it:
-  server:  go run . relay
-  both:    go run . via that.server:9000 secret-room
-
-Type /quit to leave a chat.
+Type /quit to leave.
 `)
 }
