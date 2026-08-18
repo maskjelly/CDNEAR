@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"crypto/subtle"
+	"fmt"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -170,10 +172,25 @@ func (h *hub) geminiSee() {
 
 func (h *hub) geminiTurn() {
 	for {
-		prompt := geminiPersona + "\n\nTranscript so far:\n" + h.history() + "\nIf you would stay quiet, output PASS. Otherwise your one line:"
+		hist := h.history()
+		need := lastLineMentionsGemini(hist)
+		prompt := geminiPersona + "\n\nTranscript so far:\n" + hist
+		if need {
+			prompt += "\nSomeone just talked to you. Reply with one short line. Do not output PASS."
+		} else {
+			prompt += "\nIf you would stay quiet, output PASS. Otherwise your one line:"
+		}
 		ans, err := askGemini(prompt)
-		if err == nil {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "gemini:", err)
+			if need {
+				h.sayGemini("lagged, say that again")
+			}
+		} else {
 			ans = strings.TrimSpace(ans)
+			if need && (ans == "" || strings.EqualFold(ans, "PASS")) {
+				ans = "yeah?"
+			}
 			if ans != "" && !strings.EqualFold(ans, "PASS") {
 				if len(ans) > 800 {
 					ans = ans[:800] + "…"

@@ -33,6 +33,29 @@ func geminiKey() string {
 }
 
 func askGemini(prompt string) (string, error) {
+	var last error
+	for try := 0; try < 3; try++ {
+		if try > 0 {
+			time.Sleep(time.Duration(try) * time.Second)
+		}
+		text, err := askGeminiOnce(prompt)
+		if err == nil {
+			return text, nil
+		}
+		last = err
+		if !retryableGemini(err) {
+			break
+		}
+	}
+	return "", last
+}
+
+func retryableGemini(err error) bool {
+	s := err.Error()
+	return strings.Contains(s, "429") || strings.Contains(s, "503") || strings.Contains(s, "UNAVAILABLE")
+}
+
+func askGeminiOnce(prompt string) (string, error) {
 	key := geminiKey()
 	if key == "" {
 		return "", fmt.Errorf("set GEMINI_API_KEY or put the key in gemini.key")
@@ -80,14 +103,29 @@ func askGemini(prompt string) (string, error) {
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return "", err
 	}
-	if len(out.Candidates) == 0 || len(out.Candidates[0].Content.Parts) == 0 {
+	var text strings.Builder
+	for _, c := range out.Candidates {
+		for _, p := range c.Content.Parts {
+			text.WriteString(p.Text)
+		}
+	}
+	got := strings.TrimSpace(text.String())
+	if got == "" {
 		return "", fmt.Errorf("empty gemini reply")
 	}
-	text := strings.TrimSpace(out.Candidates[0].Content.Parts[0].Text)
-	if text == "" {
-		return "", fmt.Errorf("empty gemini reply")
+	return got, nil
+}
+
+func lastLineMentionsGemini(hist string) bool { // used to force a reply when someone says "gemini"
+	lines := strings.Split(strings.TrimSpace(hist), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := lines[i]
+		if line == "" || strings.HasPrefix(line, "gemini:") || strings.HasPrefix(line, "*:") {
+			continue
+		}
+		return strings.Contains(strings.ToLower(line), "gemini")
 	}
-	return text, nil
+	return false
 }
 
 func truncate(s string, n int) string {
